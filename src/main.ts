@@ -7,7 +7,6 @@ import * as faceapi from 'face-api.js';
 import { Canvas, loadImage, Image } from 'canvas';
 import fetch from 'node-fetch';
 import * as fs from 'fs';
-import { dirname } from 'path';
 
 faceapi.env // @ts-expect-error as docs
     .monkeyPatch({ Canvas, Image, fetch });
@@ -34,6 +33,7 @@ class FaceRecognition extends utils.Adapter {
             return;
         }
 
+        await this.ensureMetaObject();
         this.log.info('Starting to train model');
         this.model = await this.trainModel();
         this.log.info('Model successfully trained');
@@ -121,13 +121,15 @@ class FaceRecognition extends utils.Adapter {
                 }
 
                 const rawPath = `${__dirname}/../images/train/${dir.name}/${image.name}`;
-                const preprocessedPath = `${__dirname}/../images/train-preprocessed/${dir.name}/${image.name}`;
+                const preprocessedPath = `train-preprocessed/${dir.name}/${image.name}`;
+                try {
+                    await this.resizeAndSaveFace(rawPath, preprocessedPath);
+                    const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
 
-                await this.resizeAndSaveFace(rawPath, preprocessedPath);
-
-                const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
-
-                classFaceDescriptors.push(faceDescriptor);
+                    classFaceDescriptors.push(faceDescriptor);
+                } catch (e: any) {
+                    this.log.warn(e.message);
+                }
             }
 
             labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(dir.name, classFaceDescriptors));
@@ -139,11 +141,13 @@ class FaceRecognition extends utils.Adapter {
     /**
      * Reads image from path and does preprocessing
      *
-     * @param sourcePath path to read image from
+     * @param sourcePath path to read image from in ioBroker storage
      */
     private async computeFaceDescriptorFromFile(sourcePath: string): Promise<Float32Array> {
+        const iobFile = await this.readFileAsync(`${this.namespace}.images`, sourcePath);
         // parse to any, because face api types seems to be made for FE
-        const image: any = await loadImage(sourcePath);
+        // @ts-expect-error types are wrong
+        const image: any = await loadImage(iobFile.file);
         const faceDescriptor = await faceapi.computeFaceDescriptor(image);
 
         if (Array.isArray(faceDescriptor)) {
@@ -158,7 +162,7 @@ class FaceRecognition extends utils.Adapter {
      * Extracts the face and saves it in the preprocessed folder
      *
      * @param rawPath path to read image from
-     * @param preprocessedPath path to write preprocessed image to
+     * @param preprocessedPath path to write preprocessed image to in iobroker storage
      */
     private async resizeAndSaveFace(rawPath: string, preprocessedPath: string): Promise<void> {
         const image: any = await loadImage(rawPath);
@@ -166,19 +170,26 @@ class FaceRecognition extends utils.Adapter {
         const detections = await faceapi.detectAllFaces(image);
 
         if (detections.length > 1) {
-            this.log.warn(`Cannot train image "${rawPath}", because more than one face detected`);
+            throw new Error(`Cannot train image "${rawPath}", because more than one face detected`);
         } else if (detections.length === 0) {
-            this.log.warn(`Cannot train image "${rawPath}", because no face detected`);
+            throw new Error(`Cannot train image "${rawPath}", because no face detected`);
         }
 
         const face: any = (await faceapi.extractFaces(image, detections))[0];
 
-        const targetDir = dirname(preprocessedPath);
-        if (!fs.existsSync(targetDir)) {
-            await fs.promises.mkdir(targetDir, { recursive: true });
-        }
+        // write the preprocessed version to iobroker storage
+        await this.writeFileAsync(`${this.namespace}.images`, preprocessedPath, face.toBuffer('image/png'));
+    }
 
-        await fs.promises.writeFile(preprocessedPath, face.toBuffer('image/png'));
+    private async ensureMetaObject(): Promise<void> {
+        await this.setObjectNotExistsAsync('images', {
+            type: 'meta',
+            common: {
+                name: 'Images for training',
+                type: 'meta.folder'
+            },
+            native: {}
+        });
     }
 }
 
