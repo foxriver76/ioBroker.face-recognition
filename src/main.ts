@@ -102,7 +102,7 @@ class FaceRecognition extends utils.Adapter {
     private async transformTrainingData(): Promise<faceapi.LabeledFaceDescriptors[]> {
         // TODO: for now we load from adapter dir
         const labeledFaceDescriptors = [];
-        const dirs = await fs.promises.readdir(`${__dirname}/../images/train`, { withFileTypes: true });
+        const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });
         for (const dir of dirs) {
             const classFaceDescriptors = [];
             if (!dir.isDirectory()) {
@@ -111,7 +111,7 @@ class FaceRecognition extends utils.Adapter {
 
             this.log.info(`Learning "${dir.name}"`);
 
-            const imageNames = await fs.promises.readdir(`${__dirname}/../images/train/${dir.name}`, {
+            const imageNames = await fs.promises.readdir(`${__dirname}/../images/${dir.name}`, {
                 withFileTypes: true
             });
 
@@ -120,7 +120,7 @@ class FaceRecognition extends utils.Adapter {
                     continue;
                 }
 
-                const rawPath = `${__dirname}/../images/train/${dir.name}/${image.name}`;
+                const rawPath = `${__dirname}/../images/${dir.name}/${image.name}`;
                 const preprocessedPath = `train-preprocessed/${dir.name}/${image.name}`;
                 try {
                     await this.resizeAndSaveFace(rawPath, preprocessedPath);
