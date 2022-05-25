@@ -66,9 +66,22 @@
         ]
     },
     "native": {
-        "option1": true,
-        "option2": "42"
+        "url": "https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/examples/images/bbt5.jpg",
+        "interval": 5
     },
     "objects": [],
-    "instanceObjects": []
+    "instanceObjects": [
+        {
+            "_id": "lastDetection",
+            "type": "state",
+            "common": {
+                "name": "Last detected person",
+                "role": "text",
+                "type": "string",
+                "write": false,
+                "read": true
+            },
+            "native": {}
+        }
+    ]
 }
