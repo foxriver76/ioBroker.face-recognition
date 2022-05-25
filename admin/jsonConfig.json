@@ -1,0 +1,40 @@
+{
+  "type": "panel",
+  "i18n": {
+    "interval": {
+      "en": "Analyzation interval in seconds",
+      "de": "Analyseintervall in Sekunden",
+      "ru": "Интервал анализа в секундах",
+      "pt": "Intervalo de análise em segundos",
+      "nl": "Analyse-interval in seconden",
+      "fr": "Intervalle d'analyse en secondes",
+      "it": "Intervallo di analisi in secondi",
+      "es": "Intervalo de análisis en segundos",
+      "pl": "Interwał analizy w sekundach",
+      "zh-cn": "分析间隔以秒为单位"
+    },
+    "url": {
+      "en": "URL of the image data",
+      "de": "URL der Bilddaten",
+      "ru": "URL данных изображения",
+      "pt": "URL dos dados da imagem",
+      "nl": "URL van de afbeeldingsgegevens",
+      "fr": "URL des données d'image",
+      "it": "URL dei dati dell'immagine",
+      "es": "URL de los datos de la imagen",
+      "pl": "URL danych obrazu",
+      "zh-cn": "图像数据的 URL"
+    }
+  },
+  "items": {
+    "interval": {
+      "type": "number",
+      "label": "interval",
+      "min": 0
+    },
+    "url": {
+      "type": "text",
+      "label": "url"
+    }
+  }
+}

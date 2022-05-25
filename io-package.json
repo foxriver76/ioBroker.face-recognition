@@ -1,0 +1,74 @@
+{
+    "common": {
+        "name": "face-recognition",
+        "version": "0.0.1",
+        "news": {
+            "0.0.1": {
+                "en": "initial release",
+                "de": "Erstveröffentlichung",
+                "ru": "Начальная версия",
+                "pt": "lançamento inicial",
+                "nl": "Eerste uitgave",
+                "fr": "Première version",
+                "it": "Versione iniziale",
+                "es": "Versión inicial",
+                "pl": "Pierwsze wydanie",
+                "zh-cn": "首次出版"
+            }
+        },
+        "title": "Face Recognition",
+        "titleLang": {
+            "en": "Face Recognition",
+            "de": "Gesichtserkennung",
+            "ru": "Распознавание лица",
+            "pt": "Reconhecimento facial",
+            "nl": "Gezichtsherkenning",
+            "fr": "Reconnaissance de visage",
+            "it": "Riconoscimento facciale",
+            "es": "Reconocimiento facial",
+            "pl": "Rozpoznawanie twarzy",
+            "zh-cn": "人脸识别"
+        },
+        "desc": {
+            "en": "Recognize faces in image data",
+            "de": "Gesichter in Bilddaten erkennen",
+            "ru": "Распознавать лица в данных изображения",
+            "pt": "Reconhecer rostos em dados de imagem",
+            "nl": "Gezichten herkennen in afbeeldingsgegevens",
+            "fr": "Reconnaître les visages dans les données d'image",
+            "it": "Riconosce i volti nei dati dell'immagine",
+            "es": "Reconocer caras en datos de imagen",
+            "pl": "Rozpoznawaj twarze w danych obrazu",
+            "zh-cn": "识别图像数据中的人脸"
+        },
+        "authors": ["foxriver76 <moritz.heusinger@gmail.com>"],
+        "keywords": ["computer vision", "artifical intelligence", "video", "image"],
+        "license": "MIT",
+        "platform": "Javascript/Node.js",
+        "main": "build/main.js",
+        "icon": "face-recognition.png",
+        "enabled": true,
+        "extIcon": "https://raw.githubusercontent.com/foxriver76/ioBroker.face-recognition/main/admin/face-recognition.png",
+        "readme": "https://github.com/foxriver76/ioBroker.face-recognition/blob/main/README.md",
+        "loglevel": "info",
+        "mode": "daemon",
+        "type": "alarm",
+        "compact": true,
+        "connectionType": "local",
+        "dataSource": "poll",
+        "adminUI": {
+            "config": "json"
+        },
+        "dependencies": [
+            {
+                "js-controller": ">=2.0.0"
+            }
+        ]
+    },
+    "native": {
+        "option1": true,
+        "option2": "42"
+    },
+    "objects": [],
+    "instanceObjects": []
+}
