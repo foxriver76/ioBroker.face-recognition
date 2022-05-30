@@ -67,7 +67,8 @@
     },
     "native": {
         "url": "https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/examples/images/bbt5.jpg",
-        "interval": 5
+        "interval": 5,
+        "reloadTrainingData": true
     },
     "objects": [],
     "instanceObjects": [

@@ -6,6 +6,7 @@ declare global {
         interface AdapterConfig {
             url: string;
             interval: number;
+            reloadTrainingData: boolean;
         }
     }
 }

@@ -24,6 +24,18 @@
       "es": "URL de los datos de la imagen",
       "pl": "URL danych obrazu",
       "zh-cn": "图像数据的 URL"
+    },
+    "reloadTrainingData": {
+      "en": "Reload training data",
+      "de": "Trainingsdaten neu laden",
+      "ru": "Перезагрузить данные тренировки",
+      "pt": "Recarregar dados de treinamento",
+      "nl": "Trainingsgegevens opnieuw laden",
+      "fr": "Recharger les données d'entraînement",
+      "it": "Ricarica i dati di allenamento",
+      "es": "Recargar datos de entrenamiento",
+      "pl": "Odśwież dane treningowe",
+      "zh-cn": "重新加载训练数据"
     }
   },
   "items": {
@@ -35,6 +47,10 @@
     "url": {
       "type": "text",
       "label": "url"
+    },
+    "reloadTrainingData": {
+      "type": "checkbox",
+      "label": "reloadTrainingData"
     }
   }
 }

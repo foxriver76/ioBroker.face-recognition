@@ -49,9 +49,23 @@ class FaceRecognition extends utils.Adapter {
       this.log.warn("Please configure adapter first");
       return;
     }
+    if (this.config.reloadTrainingData) {
+      await this.uploadTrainingData();
+      this.log.info("Training data successfully uploaded. Restarting adapter now");
+      await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, {
+        native: { reloadTrainingData: false }
+      });
+      return;
+    }
     await this.ensureMetaObject();
     this.log.info("Starting to train model");
-    this.model = await this.trainModel();
+    try {
+      this.model = await this.trainModel();
+    } catch (e) {
+      this.log.error(`Could not train model: ${e.message}`);
+      this.restart();
+      return;
+    }
     this.log.info("Model successfully trained");
     this.analyzeImage();
   }
@@ -92,22 +106,20 @@ class FaceRecognition extends utils.Adapter {
   }
   async transformTrainingData() {
     const labeledFaceDescriptors = [];
-    const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });
+    const dirs = await this.readDirAsync(`${this.namespace}.images`, "train");
     for (const dir of dirs) {
       const classFaceDescriptors = [];
-      if (!dir.isDirectory()) {
+      if (!dir.isDir) {
         continue;
       }
-      this.log.info(`Learning "${dir.name}"`);
-      const imageNames = await fs.promises.readdir(`${__dirname}/../images/${dir.name}`, {
-        withFileTypes: true
-      });
+      this.log.info(`Learning "${dir.file}"`);
+      const imageNames = await this.readDirAsync(`${this.namespace}.images`, `train/${dir.file}`);
       for (const image of imageNames) {
-        if (image.isDirectory()) {
+        if (image.isDir) {
           continue;
         }
-        const rawPath = `${__dirname}/../images/${dir.name}/${image.name}`;
-        const preprocessedPath = `train-preprocessed/${dir.name}/${image.name}`;
+        const rawPath = `train/${dir.file}/${image.file}`;
+        const preprocessedPath = `train-preprocessed/${dir.file}/${image.file}`;
         try {
           await this.resizeAndSaveFace(rawPath, preprocessedPath);
           const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
@@ -116,7 +128,7 @@ class FaceRecognition extends utils.Adapter {
           this.log.warn(e.message);
         }
       }
-      labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(dir.name, classFaceDescriptors));
+      labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors));
     }
     return labeledFaceDescriptors;
   }
@@ -132,7 +144,8 @@ class FaceRecognition extends utils.Adapter {
     }
   }
   async resizeAndSaveFace(rawPath, preprocessedPath) {
-    const image = await (0, import_canvas.loadImage)(rawPath);
+    const file = await this.readFileAsync(`${this.namespace}.images`, rawPath);
+    const image = await (0, import_canvas.loadImage)(file.file);
     const detections = await faceapi.detectAllFaces(image);
     if (detections.length > 1) {
       throw new Error(`Cannot train image "${rawPath}", because more than one face detected`);
@@ -151,6 +164,31 @@ class FaceRecognition extends utils.Adapter {
       },
       native: {}
     });
+  }
+  async uploadTrainingData() {
+    const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });
+    for (const dir of dirs) {
+      if (!dir.isDirectory()) {
+        continue;
+      }
+      this.log.info(`Uploading images for "${dir.name}"`);
+      const imageNames = await fs.promises.readdir(`${__dirname}/../images/${dir.name}`, {
+        withFileTypes: true
+      });
+      for (const image of imageNames) {
+        if (image.isDirectory()) {
+          continue;
+        }
+        const sourcePath = `${__dirname}/../images/${dir.name}/${image.name}`;
+        const targetPath = `train/${dir.name}/${image.name}`;
+        try {
+          const image2 = await fs.promises.readFile(sourcePath);
+          await this.writeFileAsync(`${this.namespace}.images`, targetPath, image2);
+        } catch (e) {
+          this.log.warn(`Could not upload file "${image.name}": ${e.message}`);
+        }
+      }
+    }
   }
 }
 if (require.main !== module) {

@@ -33,9 +33,24 @@ class FaceRecognition extends utils.Adapter {
             return;
         }
 
+        if (this.config.reloadTrainingData) {
+            await this.uploadTrainingData();
+            this.log.info('Training data successfully uploaded. Restarting adapter now');
+            await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, {
+                native: { reloadTrainingData: false }
+            });
+            return;
+        }
+
         await this.ensureMetaObject();
         this.log.info('Starting to train model');
-        this.model = await this.trainModel();
+        try {
+            this.model = await this.trainModel();
+        } catch (e: any) {
+            this.log.error(`Could not train model: ${e.message}`);
+            this.restart();
+            return;
+        }
         this.log.info('Model successfully trained');
 
         this.analyzeImage();
@@ -100,28 +115,25 @@ class FaceRecognition extends utils.Adapter {
      * Extracts faces from the training data and stores them
      */
     private async transformTrainingData(): Promise<faceapi.LabeledFaceDescriptors[]> {
-        // TODO: for now we load from adapter dir
         const labeledFaceDescriptors = [];
-        const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });
+        const dirs = await this.readDirAsync(`${this.namespace}.images`, 'train');
         for (const dir of dirs) {
             const classFaceDescriptors = [];
-            if (!dir.isDirectory()) {
+            if (!dir.isDir) {
                 continue;
             }
 
-            this.log.info(`Learning "${dir.name}"`);
+            this.log.info(`Learning "${dir.file}"`);
 
-            const imageNames = await fs.promises.readdir(`${__dirname}/../images/${dir.name}`, {
-                withFileTypes: true
-            });
+            const imageNames = await this.readDirAsync(`${this.namespace}.images`, `train/${dir.file}`);
 
             for (const image of imageNames) {
-                if (image.isDirectory()) {
+                if (image.isDir) {
                     continue;
                 }
 
-                const rawPath = `${__dirname}/../images/${dir.name}/${image.name}`;
-                const preprocessedPath = `train-preprocessed/${dir.name}/${image.name}`;
+                const rawPath = `train/${dir.file}/${image.file}`;
+                const preprocessedPath = `train-preprocessed/${dir.file}/${image.file}`;
                 try {
                     await this.resizeAndSaveFace(rawPath, preprocessedPath);
                     const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
@@ -132,7 +144,7 @@ class FaceRecognition extends utils.Adapter {
                 }
             }
 
-            labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(dir.name, classFaceDescriptors));
+            labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors));
         }
 
         return labeledFaceDescriptors;
@@ -161,11 +173,13 @@ class FaceRecognition extends utils.Adapter {
     /**
      * Extracts the face and saves it in the preprocessed folder
      *
-     * @param rawPath path to read image from
+     * @param rawPath path to read image from in ioBroker storage
      * @param preprocessedPath path to write preprocessed image to in iobroker storage
      */
     private async resizeAndSaveFace(rawPath: string, preprocessedPath: string): Promise<void> {
-        const image: any = await loadImage(rawPath);
+        const file = await this.readFileAsync(`${this.namespace}.images`, rawPath);
+        // @ts-expect-error wrong types
+        const image: any = await loadImage(file.file);
 
         const detections = await faceapi.detectAllFaces(image);
 
@@ -190,6 +204,40 @@ class FaceRecognition extends utils.Adapter {
             },
             native: {}
         });
+    }
+
+    /**
+     * Loads the training data brought with adapter to the iobroker storage
+     */
+    private async uploadTrainingData(): Promise<void> {
+        const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });
+        for (const dir of dirs) {
+            if (!dir.isDirectory()) {
+                continue;
+            }
+
+            this.log.info(`Uploading images for "${dir.name}"`);
+
+            const imageNames = await fs.promises.readdir(`${__dirname}/../images/${dir.name}`, {
+                withFileTypes: true
+            });
+
+            for (const image of imageNames) {
+                if (image.isDirectory()) {
+                    continue;
+                }
+
+                const sourcePath = `${__dirname}/../images/${dir.name}/${image.name}`;
+                const targetPath = `train/${dir.name}/${image.name}`;
+
+                try {
+                    const image = await fs.promises.readFile(sourcePath);
+                    await this.writeFileAsync(`${this.namespace}.images`, targetPath, image);
+                } catch (e: any) {
+                    this.log.warn(`Could not upload file "${image.name}": ${e.message}`);
+                }
+            }
+        }
     }
 }
 
