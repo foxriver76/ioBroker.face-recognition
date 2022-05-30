@@ -38,8 +38,15 @@ var fs = __toESM(require("fs"));
 faceapi.env.monkeyPatch({ Canvas: import_canvas.Canvas, Image: import_canvas.Image, fetch: import_node_fetch.default });
 class FaceRecognition extends utils.Adapter {
   constructor(options = {}) {
+    const errorHandler = (err) => {
+      if (err.message.includes("To speed up")) {
+        return true;
+      }
+      return false;
+    };
     super(__spreadProps(__spreadValues({}, options), {
-      name: "face-recognition"
+      name: "face-recognition",
+      error: errorHandler
     }));
     this.on("ready", this.onReady.bind(this));
     this.on("unload", this.onUnload.bind(this));
@@ -50,6 +57,7 @@ class FaceRecognition extends utils.Adapter {
       this.log.warn("Please configure url in adapter configuration first");
       return;
     }
+    await this.ensureMetaObject();
     if (this.config.reloadTrainingData) {
       await this.uploadTrainingData();
       this.log.info("Training data successfully uploaded. Restarting adapter now");
@@ -58,7 +66,6 @@ class FaceRecognition extends utils.Adapter {
       });
       return;
     }
-    await this.ensureMetaObject();
     await this.loadWeights();
     if (this.config.retrain) {
       this.log.info("Starting to train model");

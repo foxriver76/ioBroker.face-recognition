@@ -1,7 +1,3 @@
-/*
- * Created with @iobroker/create-adapter v2.1.1
- */
-
 import * as utils from '@iobroker/adapter-core';
 import * as faceapi from 'face-api.js';
 import { Canvas, loadImage, Image } from 'canvas';
@@ -16,9 +12,18 @@ class FaceRecognition extends utils.Adapter {
     private model?: faceapi.FaceMatcher;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
+        const errorHandler: ioBroker.ErrorHandler = err => {
+            // Handle tensorflow recommendation
+            if (err.message.includes('To speed up')) {
+                return true;
+            }
+            return false;
+        };
+
         super({
             ...options,
-            name: 'face-recognition'
+            name: 'face-recognition',
+            error: errorHandler
         });
         this.on('ready', this.onReady.bind(this));
         this.on('unload', this.onUnload.bind(this));
@@ -34,6 +39,8 @@ class FaceRecognition extends utils.Adapter {
             return;
         }
 
+        await this.ensureMetaObject();
+
         if (this.config.reloadTrainingData) {
             await this.uploadTrainingData();
             this.log.info('Training data successfully uploaded. Restarting adapter now');
@@ -43,7 +50,6 @@ class FaceRecognition extends utils.Adapter {
             return;
         }
 
-        await this.ensureMetaObject();
         await this.loadWeights();
 
         if (this.config.retrain) {
