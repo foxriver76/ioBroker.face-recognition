@@ -7,6 +7,7 @@ declare global {
             url: string;
             interval: number;
             reloadTrainingData: boolean;
+            retrain: boolean;
         }
     }
 }

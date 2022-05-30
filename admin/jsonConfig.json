@@ -36,6 +36,18 @@
       "es": "Recargar datos de entrenamiento",
       "pl": "Odśwież dane treningowe",
       "zh-cn": "重新加载训练数据"
+    },
+    "retrain": {
+      "en": "Retrain model",
+      "de": "Modell neu trainieren",
+      "ru": "Переобучить модель",
+      "pt": "Retreinar modelo",
+      "nl": "Model opnieuw trainen",
+      "fr": "Recycler le modèle",
+      "it": "Modello di riqualificazione",
+      "es": "modelo de reentrenamiento",
+      "pl": "Przekwalifikować model",
+      "zh-cn": "重新训练模型"
     }
   },
   "items": {
@@ -51,6 +63,10 @@
     "reloadTrainingData": {
       "type": "checkbox",
       "label": "reloadTrainingData"
+    },
+    "retrain": {
+      "type": "checkbox",
+      "label": "retrain"
     }
   }
 }

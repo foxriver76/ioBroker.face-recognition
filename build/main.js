@@ -58,15 +58,32 @@ class FaceRecognition extends utils.Adapter {
       return;
     }
     await this.ensureMetaObject();
-    this.log.info("Starting to train model");
-    try {
-      this.model = await this.trainModel();
-    } catch (e) {
-      this.log.error(`Could not train model: ${e.message}`);
-      this.restart();
+    await this.loadWeights();
+    if (this.config.retrain) {
+      this.log.info("Starting to train model");
+      try {
+        this.model = await this.trainModel();
+      } catch (e) {
+        this.log.error(`Could not train model: ${e.message}`);
+        this.restart();
+        return;
+      }
+      this.log.info("Model successfully trained. Restarting adapter now");
+      await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, {
+        native: { retrain: false }
+      });
       return;
+    } else {
+      this.log.info("Trying to load saved model");
+      try {
+        this.model = await this.loadModel();
+        this.log.info("Successfully loaded model");
+      } catch (e) {
+        this.log.error(`Could not load model: ${e.message}`);
+        this.restart();
+        return;
+      }
     }
-    this.log.info("Model successfully trained");
     this.analyzeImage();
   }
   onUnload(callback) {
@@ -98,9 +115,6 @@ class FaceRecognition extends utils.Adapter {
     this.analyzeTimer = setTimeout(() => this.analyzeImage(), this.config.interval * 1e3);
   }
   async trainModel() {
-    await faceapi.nets.ssdMobilenetv1.loadFromDisk(`${__dirname}/../weights`);
-    await faceapi.nets.faceLandmark68Net.loadFromDisk("weights");
-    await faceapi.nets.faceRecognitionNet.loadFromDisk("weights");
     const labeledFaceDescriptors = await this.transformTrainingData();
     return new faceapi.FaceMatcher(labeledFaceDescriptors);
   }
@@ -128,7 +142,9 @@ class FaceRecognition extends utils.Adapter {
           this.log.warn(e.message);
         }
       }
-      labeledFaceDescriptors.push(new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors));
+      const classDescriptor = new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors);
+      await this.saveModel(classDescriptor);
+      labeledFaceDescriptors.push(classDescriptor);
     }
     return labeledFaceDescriptors;
   }
@@ -164,6 +180,14 @@ class FaceRecognition extends utils.Adapter {
       },
       native: {}
     });
+    await this.setObjectNotExistsAsync("models", {
+      type: "meta",
+      common: {
+        name: "Trained models",
+        type: "meta.folder"
+      },
+      native: {}
+    });
   }
   async uploadTrainingData() {
     const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });
@@ -189,6 +213,28 @@ class FaceRecognition extends utils.Adapter {
         }
       }
     }
+  }
+  async saveModel(labeledDescriptors) {
+    await this.writeFileAsync(`${this.namespace}.models`, labeledDescriptors.label, JSON.stringify(labeledDescriptors.toJSON()));
+  }
+  async loadModel() {
+    const labeledFaceDescriptors = [];
+    const dir = await this.readDirAsync(`${this.namespace}.models`, "");
+    for (const entry of dir) {
+      if (entry.isDir) {
+        continue;
+      }
+      const descriptorFile = await this.readFileAsync(`${this.namespace}.models`, entry.file);
+      const descriptor = faceapi.LabeledFaceDescriptors.fromJSON(JSON.parse(descriptorFile.file));
+      this.log.info(`Loaded model for "${descriptor.label}"`);
+      labeledFaceDescriptors.push(descriptor);
+    }
+    return new faceapi.FaceMatcher(labeledFaceDescriptors);
+  }
+  async loadWeights() {
+    await faceapi.nets.ssdMobilenetv1.loadFromDisk(`${__dirname}/../weights`);
+    await faceapi.nets.faceLandmark68Net.loadFromDisk("weights");
+    await faceapi.nets.faceRecognitionNet.loadFromDisk("weights");
   }
 }
 if (require.main !== module) {
