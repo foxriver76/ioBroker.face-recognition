@@ -38,15 +38,8 @@ var fs = __toESM(require("fs"));
 faceapi.env.monkeyPatch({ Canvas: import_canvas.Canvas, Image: import_canvas.Image, fetch: import_node_fetch.default });
 class FaceRecognition extends utils.Adapter {
   constructor(options = {}) {
-    const errorHandler = (err) => {
-      if (err.message.includes("To speed up")) {
-        return true;
-      }
-      return false;
-    };
     super(__spreadProps(__spreadValues({}, options), {
-      name: "face-recognition",
-      error: errorHandler
+      name: "face-recognition"
     }));
     this.on("ready", this.onReady.bind(this));
     this.on("unload", this.onUnload.bind(this));
@@ -57,7 +50,6 @@ class FaceRecognition extends utils.Adapter {
       this.log.warn("Please configure url in adapter configuration first");
       return;
     }
-    await this.ensureMetaObject();
     if (this.config.reloadTrainingData) {
       await this.uploadTrainingData();
       this.log.info("Training data successfully uploaded. Restarting adapter now");
@@ -155,14 +147,20 @@ class FaceRecognition extends utils.Adapter {
         try {
           await this.resizeAndSaveFace(rawPath, preprocessedPath);
           const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
-          classFaceDescriptors.push(faceDescriptor);
+          if (faceDescriptor) {
+            classFaceDescriptors.push(faceDescriptor);
+          }
         } catch (e) {
           this.log.warn(e.message);
         }
       }
-      const classDescriptor = new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors);
-      await this.saveModel(classDescriptor);
-      labeledFaceDescriptors.push(classDescriptor);
+      if (classFaceDescriptors.length) {
+        const classDescriptor = new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors);
+        await this.saveModel(classDescriptor);
+        labeledFaceDescriptors.push(classDescriptor);
+      } else {
+        this.log.warn(`No faces found for "${dir.file}"`);
+      }
     }
     return labeledFaceDescriptors;
   }
@@ -171,8 +169,8 @@ class FaceRecognition extends utils.Adapter {
     const image = await (0, import_canvas.loadImage)(iobFile.file);
     const faceDescriptor = await faceapi.computeFaceDescriptor(image);
     if (Array.isArray(faceDescriptor)) {
-      this.log.warn(`Multiple targets at "${sourcePath}" this may reduce dedection performance`);
-      return faceDescriptor[0];
+      this.log.warn(`Multiple targets at "${sourcePath}", skipping image`);
+      return null;
     } else {
       return faceDescriptor;
     }
@@ -188,24 +186,6 @@ class FaceRecognition extends utils.Adapter {
     }
     const face = (await faceapi.extractFaces(image, detections))[0];
     await this.writeFileAsync(`${this.namespace}.images`, preprocessedPath, face.toBuffer("image/png"));
-  }
-  async ensureMetaObject() {
-    await this.setObjectNotExistsAsync("images", {
-      type: "meta",
-      common: {
-        name: "Images for training",
-        type: "meta.folder"
-      },
-      native: {}
-    });
-    await this.setObjectNotExistsAsync("models", {
-      type: "meta",
-      common: {
-        name: "Trained models",
-        type: "meta.folder"
-      },
-      native: {}
-    });
   }
   async uploadTrainingData() {
     const dirs = await fs.promises.readdir(`${__dirname}/../images`, { withFileTypes: true });

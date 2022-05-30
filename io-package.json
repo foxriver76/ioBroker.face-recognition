@@ -74,6 +74,24 @@
     "objects": [],
     "instanceObjects": [
         {
+            "_id": "images",
+            "type": "meta",
+            "common": {
+                "name": "Images for training",
+                "type": "meta.folder"
+            },
+            "native": {}
+        },
+        {
+            "_id": "models",
+            "type": "meta",
+            "common": {
+                "name": "Trained models",
+                "type": "meta.folder"
+            },
+            "native": {}
+        },
+        {
             "_id": "lastDetection",
             "type": "state",
             "common": {

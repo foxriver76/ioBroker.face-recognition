@@ -12,18 +12,9 @@ class FaceRecognition extends utils.Adapter {
     private model?: faceapi.FaceMatcher;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
-        const errorHandler: ioBroker.ErrorHandler = err => {
-            // Handle tensorflow recommendation
-            if (err.message.includes('To speed up')) {
-                return true;
-            }
-            return false;
-        };
-
         super({
             ...options,
-            name: 'face-recognition',
-            error: errorHandler
+            name: 'face-recognition'
         });
         this.on('ready', this.onReady.bind(this));
         this.on('unload', this.onUnload.bind(this));
@@ -38,8 +29,6 @@ class FaceRecognition extends utils.Adapter {
             this.log.warn('Please configure url in adapter configuration first');
             return;
         }
-
-        await this.ensureMetaObject();
 
         if (this.config.reloadTrainingData) {
             await this.uploadTrainingData();
@@ -152,7 +141,7 @@ class FaceRecognition extends utils.Adapter {
         const labeledFaceDescriptors: faceapi.LabeledFaceDescriptors[] = [];
         const dirs = await this.readDirAsync(`${this.namespace}.images`, 'train');
         for (const dir of dirs) {
-            const classFaceDescriptors = [];
+            const classFaceDescriptors: Float32Array[] = [];
             if (!dir.isDir) {
                 continue;
             }
@@ -172,15 +161,21 @@ class FaceRecognition extends utils.Adapter {
                     await this.resizeAndSaveFace(rawPath, preprocessedPath);
                     const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
 
-                    classFaceDescriptors.push(faceDescriptor);
+                    if (faceDescriptor) {
+                        classFaceDescriptors.push(faceDescriptor);
+                    }
                 } catch (e: any) {
                     this.log.warn(e.message);
                 }
             }
 
-            const classDescriptor = new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors);
-            await this.saveModel(classDescriptor);
-            labeledFaceDescriptors.push(classDescriptor);
+            if (classFaceDescriptors.length) {
+                const classDescriptor = new faceapi.LabeledFaceDescriptors(dir.file, classFaceDescriptors);
+                await this.saveModel(classDescriptor);
+                labeledFaceDescriptors.push(classDescriptor);
+            } else {
+                this.log.warn(`No faces found for "${dir.file}"`);
+            }
         }
 
         return labeledFaceDescriptors;
@@ -191,7 +186,7 @@ class FaceRecognition extends utils.Adapter {
      *
      * @param sourcePath path to read image from in ioBroker storage
      */
-    private async computeFaceDescriptorFromFile(sourcePath: string): Promise<Float32Array> {
+    private async computeFaceDescriptorFromFile(sourcePath: string): Promise<Float32Array | null> {
         const iobFile = await this.readFileAsync(`${this.namespace}.images`, sourcePath);
         // parse to any, because face api types seems to be made for FE
         // @ts-expect-error types are wrong
@@ -199,8 +194,8 @@ class FaceRecognition extends utils.Adapter {
         const faceDescriptor = await faceapi.computeFaceDescriptor(image);
 
         if (Array.isArray(faceDescriptor)) {
-            this.log.warn(`Multiple targets at "${sourcePath}" this may reduce dedection performance`);
-            return faceDescriptor[0];
+            this.log.warn(`Multiple targets at "${sourcePath}", skipping image`);
+            return null;
         } else {
             return faceDescriptor;
         }
@@ -229,29 +224,6 @@ class FaceRecognition extends utils.Adapter {
 
         // write the preprocessed version to iobroker storage
         await this.writeFileAsync(`${this.namespace}.images`, preprocessedPath, face.toBuffer('image/png'));
-    }
-
-    /**
-     * Creates the necessary meta objects for file persistence
-     */
-    private async ensureMetaObject(): Promise<void> {
-        await this.setObjectNotExistsAsync('images', {
-            type: 'meta',
-            common: {
-                name: 'Images for training',
-                type: 'meta.folder'
-            },
-            native: {}
-        });
-
-        await this.setObjectNotExistsAsync('models', {
-            type: 'meta',
-            common: {
-                name: 'Trained models',
-                type: 'meta.folder'
-            },
-            native: {}
-        });
     }
 
     /**
@@ -292,7 +264,7 @@ class FaceRecognition extends utils.Adapter {
      * Saves given labeled descriptors
      * @param labeledDescriptors - labeled face descriptors for a label
      */
-    private async saveModel(labeledDescriptors: faceapi.LabeledFaceDescriptors) {
+    private async saveModel(labeledDescriptors: faceapi.LabeledFaceDescriptors): Promise<void> {
         await this.writeFileAsync(
             `${this.namespace}.models`,
             labeledDescriptors.label,
