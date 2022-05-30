@@ -5,7 +5,6 @@
 [![Downloads](https://img.shields.io/npm/dm/iobroker.face-recognition.svg)](https://www.npmjs.com/package/iobroker.face-recognition)
 ![Number of Installations](https://iobroker.live/badges/face-recognition-installed.svg)
 ![Current version in stable repository](https://iobroker.live/badges/face-recognition-stable.svg)
-[![Dependency Status](https://img.shields.io/david/foxriver76/iobroker.face-recognition.svg)](https://david-dm.org/foxriver76/iobroker.face-recognition)
 
 [![NPM](https://nodei.co/npm/iobroker.face-recognition.png?downloads=true)](https://nodei.co/npm/iobroker.face-recognition/)
 
@@ -124,3 +123,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The adapter icon has been designed using resources from Flaticon.com
