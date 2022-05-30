@@ -43,10 +43,11 @@ class FaceRecognition extends utils.Adapter {
     }));
     this.on("ready", this.onReady.bind(this));
     this.on("unload", this.onUnload.bind(this));
+    this.on("stateChange", this.analyzeImage.bind(this));
   }
   async onReady() {
-    if (!this.config.url || !this.config.interval) {
-      this.log.warn("Please configure adapter first");
+    if (!this.config.url) {
+      this.log.warn("Please configure url in adapter configuration first");
       return;
     }
     if (this.config.reloadTrainingData) {
@@ -84,7 +85,10 @@ class FaceRecognition extends utils.Adapter {
         return;
       }
     }
-    this.analyzeImage();
+    this.subscribeStates("performDetection");
+    if (this.config.interval) {
+      this.analyzeImage();
+    }
   }
   onUnload(callback) {
     try {
@@ -98,21 +102,28 @@ class FaceRecognition extends utils.Adapter {
     }
   }
   async analyzeImage() {
+    if (!this.model) {
+      this.log.warn("Model not ready yet");
+      return;
+    }
     if (this.analyzeTimer) {
+      clearTimeout(this.analyzeTimer);
       this.analyzeTimer = null;
     }
     this.log.info(`Trying to get image from "${this.config.url}"`);
     const image = await (0, import_canvas.loadImage)(this.config.url);
     const detectedFaces = await faceapi.detectAllFaces(image).withFaceLandmarks().withFaceDescriptors();
     if (detectedFaces.length) {
-      this.log.info(`Detected ${detectedFaces.length} faces`);
+      this.log.info(`Detected ${detectedFaces.length} face/s`);
     }
     for (const { descriptor, detection } of detectedFaces) {
       const label = this.model.findBestMatch(descriptor).toString();
       this.log.info(`Detected ${label} with a confidence of ${detection.score}`);
       await this.setStateAsync("lastDetection", label, true);
     }
-    this.analyzeTimer = setTimeout(() => this.analyzeImage(), this.config.interval * 1e3);
+    if (this.config.interval) {
+      this.analyzeTimer = setTimeout(() => this.analyzeImage(), this.config.interval * 1e3);
+    }
   }
   async trainModel() {
     const labeledFaceDescriptors = await this.transformTrainingData();

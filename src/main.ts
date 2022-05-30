@@ -22,14 +22,15 @@ class FaceRecognition extends utils.Adapter {
         });
         this.on('ready', this.onReady.bind(this));
         this.on('unload', this.onUnload.bind(this));
+        this.on('stateChange', this.analyzeImage.bind(this));
     }
 
     /**
      * Is called when databases are connected and adapter received configuration.
      */
     private async onReady(): Promise<void> {
-        if (!this.config.url || !this.config.interval) {
-            this.log.warn('Please configure adapter first');
+        if (!this.config.url) {
+            this.log.warn('Please configure url in adapter configuration first');
             return;
         }
 
@@ -72,7 +73,10 @@ class FaceRecognition extends utils.Adapter {
             }
         }
 
-        this.analyzeImage();
+        this.subscribeStates('performDetection');
+        if (this.config.interval) {
+            this.analyzeImage();
+        }
     }
 
     /**
@@ -94,7 +98,13 @@ class FaceRecognition extends utils.Adapter {
      * Whole process of retriving image and analyzing it
      */
     private async analyzeImage(): Promise<void> {
+        if (!this.model) {
+            this.log.warn('Model not ready yet');
+            return;
+        }
+
         if (this.analyzeTimer) {
+            clearTimeout(this.analyzeTimer);
             this.analyzeTimer = null;
         }
 
@@ -107,16 +117,18 @@ class FaceRecognition extends utils.Adapter {
         const detectedFaces = await faceapi.detectAllFaces(image).withFaceLandmarks().withFaceDescriptors();
 
         if (detectedFaces.length) {
-            this.log.info(`Detected ${detectedFaces.length} faces`);
+            this.log.info(`Detected ${detectedFaces.length} face/s`);
         }
 
         for (const { descriptor, detection } of detectedFaces) {
-            const label = this.model!.findBestMatch(descriptor).toString();
+            const label = this.model.findBestMatch(descriptor).toString();
             this.log.info(`Detected ${label} with a confidence of ${detection.score}`);
             await this.setStateAsync('lastDetection', label, true);
         }
 
-        this.analyzeTimer = setTimeout(() => this.analyzeImage(), this.config.interval * 1000);
+        if (this.config.interval) {
+            this.analyzeTimer = setTimeout(() => this.analyzeImage(), this.config.interval * 1000);
+        }
     }
 
     /**

@@ -84,6 +84,18 @@
                 "read": true
             },
             "native": {}
+        },
+        {
+            "_id": "performDetection",
+            "type": "state",
+            "common": {
+                "name": "Trigger detection",
+                "role": "button",
+                "type": "boolean",
+                "write": true,
+                "read": false
+            },
+            "native": {}
         }
     ]
 }
