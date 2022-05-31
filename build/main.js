@@ -145,7 +145,7 @@ class FaceRecognition extends utils.Adapter {
         const rawPath = `train/${dir.file}/${image.file}`;
         const preprocessedPath = `train-preprocessed/${dir.file}/${image.file}`;
         try {
-          await this.resizeAndSaveFace(rawPath, preprocessedPath);
+          await this.saveExtractedFace(rawPath, preprocessedPath);
           const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
           if (faceDescriptor) {
             classFaceDescriptors.push(faceDescriptor);
@@ -169,13 +169,12 @@ class FaceRecognition extends utils.Adapter {
     const image = await (0, import_canvas.loadImage)(iobFile.file);
     const faceDescriptor = await faceapi.computeFaceDescriptor(image);
     if (Array.isArray(faceDescriptor)) {
-      this.log.warn(`Multiple targets at "${sourcePath}", skipping image`);
-      return null;
+      throw new Error(`Multiple targets at "${sourcePath}", skipping image`);
     } else {
       return faceDescriptor;
     }
   }
-  async resizeAndSaveFace(rawPath, preprocessedPath) {
+  async saveExtractedFace(rawPath, preprocessedPath) {
     const file = await this.readFileAsync(`${this.namespace}.images`, rawPath);
     const image = await (0, import_canvas.loadImage)(file.file);
     const detections = await faceapi.detectAllFaces(image);

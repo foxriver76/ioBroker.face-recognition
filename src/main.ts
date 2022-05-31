@@ -158,7 +158,7 @@ class FaceRecognition extends utils.Adapter {
                 const rawPath = `train/${dir.file}/${image.file}`;
                 const preprocessedPath = `train-preprocessed/${dir.file}/${image.file}`;
                 try {
-                    await this.resizeAndSaveFace(rawPath, preprocessedPath);
+                    await this.saveExtractedFace(rawPath, preprocessedPath);
                     const faceDescriptor = await this.computeFaceDescriptorFromFile(preprocessedPath);
 
                     if (faceDescriptor) {
@@ -186,7 +186,7 @@ class FaceRecognition extends utils.Adapter {
      *
      * @param sourcePath path to read image from in ioBroker storage
      */
-    private async computeFaceDescriptorFromFile(sourcePath: string): Promise<Float32Array | null> {
+    private async computeFaceDescriptorFromFile(sourcePath: string): Promise<Float32Array> {
         const iobFile = await this.readFileAsync(`${this.namespace}.images`, sourcePath);
         // parse to any, because face api types seems to be made for FE
         // @ts-expect-error types are wrong
@@ -194,20 +194,19 @@ class FaceRecognition extends utils.Adapter {
         const faceDescriptor = await faceapi.computeFaceDescriptor(image);
 
         if (Array.isArray(faceDescriptor)) {
-            this.log.warn(`Multiple targets at "${sourcePath}", skipping image`);
-            return null;
+            throw new Error(`Multiple targets at "${sourcePath}", skipping image`);
         } else {
             return faceDescriptor;
         }
     }
 
     /**
-     * Extracts the face and saves it in the preprocessed folder
+     * Extracts the face from the image and saves it in the preprocessed folder
      *
      * @param rawPath path to read image from in ioBroker storage
      * @param preprocessedPath path to write preprocessed image to in iobroker storage
      */
-    private async resizeAndSaveFace(rawPath: string, preprocessedPath: string): Promise<void> {
+    private async saveExtractedFace(rawPath: string, preprocessedPath: string): Promise<void> {
         const file = await this.readFileAsync(`${this.namespace}.images`, rawPath);
         // @ts-expect-error wrong types
         const image: any = await loadImage(file.file);
